@@ -25,7 +25,7 @@ email_regex = r'^([a-zA-Z0-9_\-\.\+]+)@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,3})$'
 gcm_regex = r'^[\w-]+$'
 
 
-def recipients(preferences, message, valid_paths, config):
+def recipients(preferences, message, valid_paths, config, pool=None):
     """ The main API function.
 
     Accepts a fedmsg message as an argument.
@@ -33,32 +33,52 @@ def recipients(preferences, message, valid_paths, config):
     Returns a dict mapping context names to lists of recipients.
     """
 
-    rule_cache = dict()
     results = defaultdict(list)
-    notified = set()
 
-    for preference in preferences:
-        user = preference['user']
-        context = preference['context']
-        if (user['openid'], context['name']) in notified:
-            continue
+    arguments = [(p, message, valid_paths, config) for p in preferences]
 
-        for filter in preference['filters']:
-            if matches(filter, message, valid_paths, rule_cache, config):
-                for detail_value in preference['detail_values']:
-                    results[context['name']].append({
-                        'user': user['openid'],
-                        context['detail_name']: detail_value,
-                        'filter_name': filter['name'],
-                        'filter_id': filter['id'],
-                        'markup_messages': preference['markup_messages'],
-                        'triggered_by_links': preference['triggered_by_links'],
-                        'shorten_links': preference['shorten_links'],
-                    })
-                notified.add((user['openid'], context['name']))
-                break
+    if not pool:
+        fn = lambda args: _recipient(*args)
+        result_list = map(fn, arguments)
+    else:
+        if not pool.targeted:
+            pool.target(_recipient)
+        result_list = pool.apply(arguments)
+
+    # Flatten the nested list
+    result_list = sum(result_list, [])
+
+    # Transform our list of tuples (context, dict) into a
+    # dict like {context: [dict, dict, ...]}
+    for context, match in result_list:
+        results[context].append(match)
 
     return results
+
+def _recipient(preference, message, valid_paths, config):
+    recipient = []
+
+    # TODO -- turn this into a dogpile cache some day
+    rule_cache = dict()
+
+    user = preference['user']
+    context = preference['context']
+
+    for filter in preference['filters']:
+        if matches(filter, message, valid_paths, rule_cache, config):
+            for detail_value in preference['detail_values']:
+                recipient.append([context['name'], {
+                    'user': user['openid'],
+                    context['detail_name']: detail_value,
+                    'filter_name': filter['name'],
+                    'filter_id': filter['id'],
+                    'markup_messages': preference['markup_messages'],
+                    'triggered_by_links': preference['triggered_by_links'],
+                    'shorten_links': preference['shorten_links'],
+                }])
+            break
+
+    return recipient
 
 
 def matches(filter, message, valid_paths, rule_cache, config):
