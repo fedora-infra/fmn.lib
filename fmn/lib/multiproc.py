@@ -18,7 +18,7 @@ class FixedPool(object):
     def __init__(self, N):
         log.info('Initializing fmn multiproc pool, size %i for thread %s' % (
             N, threading.current_thread().name))
-        self.incoming = Queue(1)
+        self.incoming = Queue()
         self.outgoing = Queue()
         self.processes = []
         self.N = N
