@@ -1,5 +1,6 @@
 import logging
 import sys
+import threading
 import traceback as tb
 
 from multiprocessing import Queue, Process
@@ -15,7 +16,8 @@ class FixedPool(object):
     This avoids the 'importable' requirement of multiprocessing.Pool.
     """
     def __init__(self, N):
-        log.debug('Initializing fmn multiproc pool, size %i' % N)
+        log.info('Initializing fmn multiproc pool, size %i for thread %s' % (
+            N, threading.current_thread().name))
         self.incoming = Queue(1)
         self.outgoing = Queue()
         self.processes = []
