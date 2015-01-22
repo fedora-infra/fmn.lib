@@ -61,12 +61,17 @@ class FixedPool(object):
         if not self.targeted:
             log.warning('No need to close pool.  Not yet targeted.')
             return
+
         log.info('Closing fmn multiproc pool.')
         for _ in self.processes:
             self.incoming.put(StopIteration)
-        log.debug('Waiting on workers to die.')
-        for p in self.processes:
-            p.join()
+
+        # XXX - we could call process.join() on all of our child processes, but
+        # that only works if *this* process is the same PID as the process that
+        # created them, and that isn't always the case when under the care of
+        # Twisted.  So, we'll just omit that.  Twisted cleans itself up nicely
+        # without it.
+
         self.processes = []
         log.info('Multiproc pool closed.')
 
