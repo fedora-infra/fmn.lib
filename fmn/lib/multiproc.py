@@ -47,7 +47,7 @@ class FixedPool(object):
             if not isinstance(item, tuple):
                 item = item,
             self.incoming.put(item)
-        return set(self.outgoing.get() for i in range(len(items)))
+        return [self.outgoing.get() for i in range(len(items))]
 
     def close(self):
         if not self.targeted:

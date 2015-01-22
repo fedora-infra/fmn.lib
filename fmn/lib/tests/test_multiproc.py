@@ -12,7 +12,7 @@ class TestMultiproc(fmn.lib.tests.Base):
                 return x + 2
             pool.target(fn)
             results = pool.apply(range(2))
-            eq_(results, set([2, 3]))
+            eq_(set(results), set([2, 3]))
         finally:
             pool.close()
 
@@ -23,7 +23,7 @@ class TestMultiproc(fmn.lib.tests.Base):
                 return x + 2
             pool.target(fn)
             results = pool.apply(range(10))
-            eq_(results, set([2, 3, 4, 5, 6, 7, 8, 9, 10, 11]))
+            eq_(set(results), set([2, 3, 4, 5, 6, 7, 8, 9, 10, 11]))
         finally:
             pool.close()
 
@@ -56,13 +56,13 @@ class TestMultiproc(fmn.lib.tests.Base):
         try:
             pool.target(fn1)
             results = pool.apply([1, 2])
-            eq_(results, set([2, 3]))
+            eq_(set(results), set([2, 3]))
         finally:
             pool.close()
 
         try:
             pool.target(fn2)
             results = pool.apply([1, 2])
-            eq_(results, set([3, 4]))
+            eq_(set(results), set([3, 4]))
         finally:
             pool.close()
