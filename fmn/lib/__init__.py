@@ -38,8 +38,7 @@ def recipients(preferences, message, valid_paths, config, pool=None):
     arguments = [(p, message, valid_paths, config) for p in preferences]
 
     if not pool:
-        fn = lambda args: _recipient(*args)
-        result_list = map(fn, arguments)
+        result_list = [_recipient(*a) for a in arguments]
     else:
         if not pool.targeted:
             pool.target(_recipient)
