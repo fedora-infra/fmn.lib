@@ -66,3 +66,20 @@ class TestMultiproc(fmn.lib.tests.Base):
             eq_(set(results), set([3, 4]))
         finally:
             pool.close()
+
+    def test_inner_exception(self):
+        pool = fmn.lib.multiproc.FixedPool(5)
+
+        error_message = "oh no!"
+
+        def fn(x):
+            raise ValueError(error_message)
+
+        try:
+            pool.target(fn)
+            pool.apply(['whatever'])
+            assert False
+        except ValueError as e:
+            assert error_message in e.message
+        finally:
+            pool.close()

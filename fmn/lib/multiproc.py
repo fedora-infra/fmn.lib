@@ -1,4 +1,6 @@
 import logging
+import sys
+import traceback as tb
 
 from multiprocessing import Queue, Process
 
@@ -47,7 +49,11 @@ class FixedPool(object):
             if not isinstance(item, tuple):
                 item = item,
             self.incoming.put(item)
-        return [self.outgoing.get() for i in range(len(items))]
+        results = [self.outgoing.get() for i in range(len(items))]
+        for result in results:
+            if isinstance(result, Exception):
+                raise result
+        return results
 
     def close(self):
         if not self.targeted:
@@ -67,4 +73,11 @@ def work(fn, incoming, outgoing):
         args = incoming.get()
         if args is StopIteration:
             break
-        outgoing.put(fn(*args))
+        try:
+            result = fn(*args)
+        except Exception as e:
+            result = type(e)(
+                "... which was originally caused by:\n" +
+                "".join(tb.format_exception(*sys.exc_info())))
+        finally:
+            outgoing.put(result)
