@@ -292,13 +292,24 @@ class Rule(BASE):
         # This will raise an exception if invalid
         Rule.validate_code_path(valid_paths, code_path, **kw)
 
-        filt = cls(code_path=code_path, negated=negated)
-        filt.arguments = kw
+        rule = cls(code_path=code_path, negated=negated)
+        rule.arguments = kw
 
-        session.add(filt)
+        session.add(rule)
         session.flush()
         session.commit()
-        return filt
+        return rule
+
+    def set_argument(self, session, key, value):
+        args = self.arguments
+        args[key] = value
+        self.arguments = args
+        session.flush()
+        session.commit()
+        self.notify(
+            self.filter.preference.openid,
+            self.filter.preference.context.name,
+            "filters")
 
     def title(self, valid_paths):
         root, name = self.code_path.split(':', 1)
@@ -318,6 +329,7 @@ class Filter(BASE):
     created_on = sa.Column(sa.DateTime, default=datetime.datetime.utcnow)
     name = sa.Column(sa.String(50))
     active = sa.Column(sa.Boolean, default=True, nullable=False)
+    oneshot = sa.Column(sa.Boolean, default=False, nullable=False)
 
     preference_id = sa.Column(
         sa.Integer,
@@ -329,7 +341,8 @@ class Filter(BASE):
             'id': self.id,
             'name': self.name,
             'created_on': self.created_on,
-            'rules': [r.__json__(reify=reify) for r in self.rules]
+            'rules': [r.__json__(reify=reify) for r in self.rules],
+            'oneshot': self.oneshot
         }
 
     def __repr__(self):
@@ -342,6 +355,28 @@ class Filter(BASE):
         session.flush()
         session.commit()
         return filter
+
+    def fired(self, session):
+        if self.oneshot:
+            self.active = False
+            session.flush()
+            session.commit()
+
+            pref = self.preference
+            if pref:
+                self.notify(pref.openid, pref.context_name, "filters")
+
+    def get_rule(self, session, code_path, **kw):
+        for r in self.rules:
+            if r.code_path == code_path:
+                return r
+        raise ValueError("No such rule found: %r" % code_path)
+
+    def has_rule(self, session, code_path, **kw):
+        for r in self.rules:
+            if r.code_path == code_path:
+                return True
+        return False
 
     def add_rule(self, session, paths, rule, **kw):
         if isinstance(rule, basestring):
@@ -439,8 +474,9 @@ class Preference(BASE):
 
     # Various presentation booleans
     markup_messages = sa.Column(sa.Boolean, default=False)
-    triggered_by_links = sa.Column(sa.Boolean, default=False)
+    triggered_by_links = sa.Column(sa.Boolean, default=True)
     shorten_links = sa.Column(sa.Boolean, default=False)
+    verbose = sa.Column(sa.Boolean, default=True)
 
     openid = sa.Column(
         sa.Text,
@@ -466,6 +502,7 @@ class Preference(BASE):
             'markup_messages': self.markup_messages,
             'triggered_by_links': self.triggered_by_links,
             'shorten_links': self.shorten_links,
+            'verbose': self.verbose,
             'enabled': self.enabled,
             'context': self.context.__json__(reify=reify),
             'user': self.user.__json__(reify=reify),
@@ -521,6 +558,12 @@ class Preference(BASE):
         session.add(self)
         session.commit()
         self.notify(self.openid, self.context_name, "shorten_links")
+
+    def set_verbose(self, session, value):
+        self.verbose = value
+        session.add(self)
+        session.commit()
+        self.notify(self.openid, self.context_name, "verbose")
 
     @classmethod
     def by_user(cls, session, openid):
@@ -632,7 +675,13 @@ class Preference(BASE):
 
     def set_filter_active(self, session, filter_name, active):
         filter = self.get_filter_name(session, filter_name)
-        filter.active = active;
+        filter.active = active
+        session.commit()
+        self.notify(self.openid, self.context_name, "filters")
+
+    def set_filter_oneshot(self, session, filter_name, oneshot):
+        filter = self.get_filter_name(session, filter_name)
+        filter.oneshot = oneshot
         session.commit()
         self.notify(self.openid, self.context_name, "filters")
 

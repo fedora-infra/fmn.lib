@@ -101,6 +101,8 @@ class TestRecipients(fmn.lib.tests.Base):
             'user': 'ralph.id.fedoraproject.org',
             'filter_name': 'test filter',
             'filter_id': 1,
+            'filter_oneshot': False,
+            'verbose': True,
         })
 
     def test_miss_recipients_list(self):
@@ -171,6 +173,8 @@ class TestRecipients(fmn.lib.tests.Base):
             'user': 'ralph.id.fedoraproject.org',
             'filter_name': 'test filter',
             'filter_id': 1,
+            'filter_oneshot': False,
+            'verbose': True,
         }
         eq_(recipients['irc'][0], expected)
 
@@ -203,6 +207,8 @@ class TestRecipients(fmn.lib.tests.Base):
             'user': 'ralph.id.fedoraproject.org',
             'filter_name': 'test filter',
             'filter_id': 1,
+            'filter_oneshot': False,
+            'verbose': True,
         })
 
     def test_load_preferences(self):
